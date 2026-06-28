@@ -34,7 +34,12 @@ class VibrationAnalyzer:
         
         self.parse_all_IMU()
         
-        self.get_vibration_on_freq(20 * 1000000, 30 * 1000000, 0, 200.0)
+        # IMU 0,1 - виброизолированные, IMU 2 - нет
+        vibeZ0 = self.get_vibration_on_freq(20 * 1000000, 58 * 1000000, 0, 200.0)
+        vibeZ2 = self.get_vibration_on_freq(20 * 1000000, 58 * 1000000, 2, 200.0)
+        print(vibeZ0, vibeZ2)
+        
+        print('attenuation 200 Hz = ', vibeZ0/vibeZ2)
         
         
         
@@ -56,14 +61,14 @@ class VibrationAnalyzer:
         print(f"parser: Loaded {len(self.IMUs[0].time)} samples")
         
         """ Calculate IMU frequency """
-        frequency = estimate_sample_rate(self.IMUs[0].time)
-        
         for i in range(0, len(self.IMUs)):
-            self.IMUs[i].freq = frequency
+            self.IMUs[i].freq = frequency = estimate_sample_rate(self.IMUs[i].time)
+            print('IMU ', i, 'sample rate', self.IMUs[i].freq)
             
+        
 
 
-    def get_attenuation_on_freq(self):
+    def get_attenuation(self):
         """
         Return attenuation vs frequency.
 
@@ -94,11 +99,14 @@ class VibrationAnalyzer:
         elif axis == 'Y':
             freqs, amps = compute_fft(self.IMUs[imuNum].ay[startIndex:endIndex], self.IMUs[imuNum].freq)
             
+        plot_fft(freqs, amps)
+        
         return get_peak_near_frequency(freqs, amps, freq)
         
         
 
-def get_peak_near_frequency(freqs, amps, target_freq, bandwidth=2):
+def get_peak_near_frequency(freqs, amps, target_freq, bandwidth=1):
+    """ Ищет пики в диапазоне [target_freq - bandwidth, target_freq + bandwidth] """
     mask = np.abs(freqs - target_freq) <= bandwidth
 
     local_freqs = freqs[mask]
@@ -149,3 +157,16 @@ def estimate_sample_rate(time_us):
 
     fs = 1e6 / avg_dt_us
     return fs
+
+def plot_fft(freqs, amps, max_freq=None):
+    plt.figure(figsize=(12, 5))
+    plt.plot(freqs, amps)
+    plt.xlabel("Frequency (Hz)")
+    plt.ylabel("Amplitude (m/s²)")
+    plt.title("FFT Spectrum")
+    plt.grid(True)
+
+    if max_freq is not None:
+        plt.xlim(0, max_freq)
+
+    plt.show()
