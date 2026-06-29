@@ -19,7 +19,7 @@ def plot_fft(freqs, amps, max_freq=None):
 
 va = vibe_analysis.VibrationAnalyzer()
 
-va.set_log_file("log.bin")
+va.set_log_file("00000045.BIN")
 va.process()
 
 

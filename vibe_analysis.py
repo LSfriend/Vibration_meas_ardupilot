@@ -9,6 +9,7 @@ class VibrationAnalyzer:
         self.log = []
         self.processed = False
         self.IMUs = [imu_data.IMUData(), imu_data.IMUData(), imu_data.IMUData()]
+        self.stableMeas = 0
 
     def set_log_file(self, log_file):
         """
@@ -32,14 +33,20 @@ class VibrationAnalyzer:
         """
         self.log = mavutil.mavlink_connection(self.log_file)
         
+        print('Start parsing IMU...')
         self.parse_all_IMU()
+        print('Parsing IMU success!')
         
+        print('Start acquisition time intervals of vibration...')
+        intervals = self.get_vibration_time_intervals()
+        print('Acquisition time intervals of vibration success!')
+        #print(intervals)
         # IMU 0,1 - виброизолированные, IMU 2 - нет
-        vibeZ0 = self.get_vibration_on_freq(20 * 1000000, 58 * 1000000, 0, 200.0)
-        vibeZ2 = self.get_vibration_on_freq(20 * 1000000, 58 * 1000000, 2, 200.0)
-        print(vibeZ0, vibeZ2)
+        # vibeZ0 = self.get_vibration_on_freq(20 * 1000000, 58 * 1000000, 0, 200.0)
+        # vibeZ2 = self.get_vibration_on_freq(20 * 1000000, 58 * 1000000, 2, 200.0)
+        # print(vibeZ0, vibeZ2)
         
-        print('attenuation 200 Hz = ', vibeZ0/vibeZ2)
+        
         
         
         
@@ -79,6 +86,30 @@ class VibrationAnalyzer:
         """
         
 
+    def get_vibration_time_intervals(self):
+        stableCounter = 0
+        countSamples100ms = int(self.IMUs[2].freq * 0.1)
+        time_intervals_of_vibration = []
+        for i in range(0, 20000):#len(self.IMUs[2].time)):
+            if self.is_value_in_threshold(self.IMUs[2].az[i], 0.08):
+                stableCounter += 1
+            else:
+                stableCounter = 0
+                print('stableCounter = 0, val = ', self.IMUs[2].az[i])
+                timeStart = self.IMUs[2].time[i]
+            if stableCounter == countSamples100ms:
+                print('stableCounter > ', int(self.IMUs[2].freq * 0.1), '; stableCounter = ', stableCounter, ' val = ', self.IMUs[2].az[i])
+                timeEnd = self.IMUs[2].time[i] - 100 * 1000
+                time_intervals_of_vibration.append([timeStart, timeEnd])
+        return time_intervals_of_vibration
+        
+    def is_value_in_threshold(self, value, threshold):
+        if abs(value - self.stableMeas) < threshold:
+            return True
+        else:
+            self.stableMeas = value
+            return False
+        
     
     def get_vibration_on_freq(self, timeStart, timeEnd, imuNum, freq, axis = 'Z'):
         
@@ -170,3 +201,6 @@ def plot_fft(freqs, amps, max_freq=None):
         plt.xlim(0, max_freq)
 
     plt.show()
+    
+
+    
